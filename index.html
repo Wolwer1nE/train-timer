@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+        }
+
+        .controls {
+            margin-bottom: 20px;
+        }
+
+        input {
+            padding: 8px;
+            font-size: 16px;
+            border: 2px solid #4CAF50;
+            border-radius: 4px;
+            width: 100px;
+            text-align: center;
+        }
+
+        button {
+            padding: 8px 16px;
+            font-size: 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .timer {
+            position: relative;
+            width: 100%;
+            height: 200px;
+            background-color: #87CEEB;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .timer-text {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 32px;
+            font-weight: bold;
+            color: #444;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 5px 15px;
+            border-radius: 20px;
+            z-index: 2;
+        }
+
+        .message {
+            font-size: 24px;
+            margin-top: 20px;
+            color: #4CAF50;
+            text-align: center;
+        }
+
+        .ground {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 60px;
+            background-color: #90EE90;
+        }
+
+        .rails {
+            position: absolute;
+            bottom: 40px;
+            width: 100%;
+            height: 10px;
+            background-color: #696969;
+        }
+    </style>
+</head>
+<body>
+<div class="controls">
+    <input type="number" id="minutes" min="1" max="15" placeholder="Минуты">
+    <button onclick="startTimer()">Поехали!</button>
+</div>
+<div class="timer">
+    <div class="ground"></div>
+    <div class="rails"></div>
+    <div id="timer-text" class="timer-text"></div>
+    <svg height="200" style="position: absolute; left: 0; top: 0;width:100%">
+        <!-- Облака -->
+        <g id="clouds">
+            <path d="M20,50 Q30,40 40,50 Q50,40 60,50 Q70,40 80,50 Q70,60 60,50 Q50,60 40,50 Q30,60 20,50"
+                  fill="white" />
+            <path d="M100,30 Q110,20 120,30 Q130,20 140,30 Q150,20 160,30 Q150,40 140,30 Q130,40 120,30 Q110,40 100,30"
+                  fill="white" />
+        </g>
+
+        <!-- Шаблон вагона -->
+        <defs>
+            <g id="wagon">
+                <rect x="0" y="100" width="70" height="40" rx="5"/>
+                <rect x="10" y="110" width="20" height="20" fill="#87CEEB"/>
+                <rect x="40" y="110" width="20" height="20" fill="#87CEEB"/>
+                <circle cx="15" cy="140" r="8" fill="#333"/>
+                <circle cx="55" cy="140" r="8" fill="#333"/>
+            </g>
+            <!-- Локомотив -->
+            <g id="locomotive">
+                <rect x="0" y="100" width="80" height="40" fill="#FF4444" rx="5"/>
+                <rect x="-10" y="85" width="30" height="20" fill="#FF4444"/>
+                <circle cx="15" cy="140" r="8" fill="#333"/>
+                <circle cx="35" cy="140" r="8" fill="#333"/>
+                <circle cx="65" cy="140" r="8" fill="#333"/>
+                <rect x="-15" y="90" width="10" height="10" fill="black"/> <!-- Труба -->
+                <path d="M-15,90 L-20,80 L-25,90" fill="none" stroke="gray" stroke-width="2"/> <!-- Дым -->
+                <path d="M-20,80 L-25,70 L-30,80" fill="none" stroke="gray" stroke-width="2"/>
+                <path d="M-25,70 L-30,60 L-35,70" fill="none" stroke="gray" stroke-width="2"/>
+
+                <!-- Окно машиниста -->
+                <rect x="40" y="110" width="20" height="20" fill="#87CEEB"/>
+
+                <!-- Передняя часть -->
+                <path d="M80,100 L95,120 L95,140 L80,140" fill="#FF4444"/>
+            </g>
+        </defs>
+
+        <!-- Поезд -->
+        <g id="train" transform="translate(0, 0)"></g>
+    </svg>
+</div>
+<div id="message" class="message">Готов к путешествию?</div>
+
+<script>
+    let intervalId = null;
+    let totalSeconds = 0;
+    let currentSeconds = 0;
+    const train = document.getElementById('train');
+    const timerText = document.getElementById('timer-text');
+    const message = document.getElementById('message');
+    const wagonColors = ['#FFA500', '#4CAF50', '#9C27B0', '#FF69B4', '#FFD700', '#00BCD4',
+        '#FF5722', '#8BC34A', '#E91E63', '#3F51B5', '#009688', '#FF4081',
+        '#CDDC39', '#2196F3', '#F44336'];
+
+    function createTrain(minutes) {
+        train.innerHTML = '';
+        let trainLength = 80 + (minutes * 80); // Длина локомотива + все вагоны
+
+        // Добавляем вагоны
+        for (let i = 0; i < minutes; i++) {
+            const wagon = document.createElementNS("http://www.w3.org/2000/svg", "use");
+            wagon.setAttributeNS(null, "href", "#wagon");
+            wagon.setAttributeNS(null, "x", (i * 80) + 90); // 80 - ширина вагона + отступ
+            wagon.setAttributeNS(null, "fill", wagonColors[i]);
+            train.appendChild(wagon);
+        }
+        // Добавляем локомотив
+        const locomotive = document.createElementNS("http://www.w3.org/2000/svg", "use");
+        locomotive.setAttributeNS(null, "href", "#locomotive");
+        locomotive.setAttributeNS(null, "x", (minutes+1)*80+10);
+        train.appendChild(locomotive);
+
+
+
+        return trainLength;
+    }
+
+    function updateMessage(progress) {
+        if (progress > 0.75) {
+            message.textContent = "Поезд отправляется!";
+        } else if (progress > 0.5) {
+            message.textContent = "Поезд в пути!";
+        } else if (progress > 0.25) {
+            message.textContent = "Поезд уже далеко!";
+        } else {
+            message.textContent = "Поезд скоро приедет на станцию!";
+        }
+    }
+
+    function startTimer() {
+        if (intervalId) {
+            clearInterval(intervalId);
+        }
+
+        const minutes = parseInt(document.getElementById('minutes').value);
+        if (isNaN(minutes) || minutes <= 0 || minutes > 15) {
+            alert('Пожалуйста, введи время от 1 до 15 минут');
+            return;
+        }
+
+        totalSeconds = minutes * 60;
+        currentSeconds = totalSeconds;
+
+        // Создаем поезд нужной длины
+        const trainLength = createTrain(minutes);
+
+        // Начальное положение поезда (полностью слева)
+        train.setAttribute('transform', `translate(-${trainLength}, 0)`);
+        updateMessage(1);
+        updateTimerText();
+
+        const distance = window.screen.width + trainLength; // Ширина экрана + длина поезда
+        const startPosition = -trainLength;
+
+        intervalId = setInterval(() => {
+            currentSeconds-=0.2;
+
+            if (currentSeconds < 0) {
+                clearInterval(intervalId);
+                message.textContent = "Поезд прибыл на станцию!";
+                return;
+            }
+
+            const progress = currentSeconds / totalSeconds;
+            const position = startPosition + ((1 - progress) * distance);
+
+            // Обновляем положение поезда
+            train.setAttribute('transform', `translate(${position}, 0)`);
+
+            updateMessage(progress);
+            updateTimerText();
+        }, 200);
+    }
+
+    function updateTimerText() {
+        const minutes = Math.floor(currentSeconds / 60);
+        const seconds = Math.floor(currentSeconds % 60);
+        timerText.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    }
+
+    // Анимация облаков
+    const clouds = document.getElementById('clouds');
+    let cloudPosition = 0;
+    setInterval(() => {
+        cloudPosition = (cloudPosition + 1) % 800;
+        clouds.setAttribute('transform', `translate(${cloudPosition}, 0)`);
+    }, 100);
+</script>
+</body>
+</html>
